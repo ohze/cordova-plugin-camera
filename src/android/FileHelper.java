@@ -26,6 +26,7 @@ import android.os.Build;
 import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import org.apache.cordova.CordovaInterface;
@@ -51,7 +52,7 @@ public class FileHelper {
     @SuppressWarnings("deprecation")
     public static String getRealPath(Uri uri, CordovaInterface cordova) {
         String realPath = null;
-
+        Log.e(LOG_TAG, "==========uri:" + uri);
         if (Build.VERSION.SDK_INT < 11)
             realPath = FileHelper.getRealPathFromURI_BelowAPI11(cordova.getActivity(), uri);
 
@@ -76,18 +77,22 @@ public class FileHelper {
 
     @SuppressLint("NewApi")
     public static String getRealPathFromURI_API11_And_Above(final Context context, final Uri uri) {
+                Log.e(LOG_TAG, "================getRealPathFromURI_API11_And_Above==================");
 
         final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
         // DocumentProvider
+
         if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
 
             // ExternalStorageProvider
             if (isExternalStorageDocument(uri)) {
                 final String docId = DocumentsContract.getDocumentId(uri);
+                Log.e(LOG_TAG, "================getRealPathFromURI_API11_And_Above==================docId:" + docId);
                 final String[] split = docId.split(":");
                 final String type = split[0];
 
                 if ("primary".equalsIgnoreCase(type)) {
+                    Log.e(LOG_TAG, "================getRealPathFromURI_API11_And_Above==========1========path:" + Environment.getExternalStorageDirectory() + "/" + split[1]);
                     return Environment.getExternalStorageDirectory() + "/" + split[1];
                 }
 
@@ -99,7 +104,7 @@ public class FileHelper {
                 final String id = DocumentsContract.getDocumentId(uri);
                 final Uri contentUri = ContentUris.withAppendedId(
                         Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
-
+                Log.e(LOG_TAG, "================getRealPathFromURI_API11_And_Above==========2========path:" + getDataColumn(context, contentUri, null, null));
                 return getDataColumn(context, contentUri, null, null);
             }
             // MediaProvider
@@ -121,7 +126,7 @@ public class FileHelper {
                 final String[] selectionArgs = new String[] {
                         split[1]
                 };
-
+                Log.e(LOG_TAG, "================getRealPathFromURI_API11_And_Above==========3========path:" + getDataColumn(context, contentUri, selection, selectionArgs));
                 return getDataColumn(context, contentUri, selection, selectionArgs);
             }
         }
@@ -131,11 +136,12 @@ public class FileHelper {
             // Return the remote address
             if (isGooglePhotosUri(uri))
                 return uri.getLastPathSegment();
-
+            Log.e(LOG_TAG, "=========content:"+getDataColumn(context, uri, null, null));
             return getDataColumn(context, uri, null, null);
         }
         // File
         else if ("file".equalsIgnoreCase(uri.getScheme())) {
+            Log.e(LOG_TAG, "=========file:"+uri.getPath());
             return uri.getPath();
         }
 
@@ -143,6 +149,7 @@ public class FileHelper {
     }
 
     public static String getRealPathFromURI_BelowAPI11(Context context, Uri contentUri) {
+        Log.e(LOG_TAG, "================getRealPathFromURI_BelowAPI11==================");
         String[] proj = { MediaStore.Images.Media.DATA };
         String result = null;
 
@@ -169,10 +176,13 @@ public class FileHelper {
     public static InputStream getInputStreamFromUriString(String uriString, CordovaInterface cordova)
             throws IOException {
         InputStream returnValue = null;
+        Log.e(LOG_TAG, "================getInputStreamFromUriString==================uriString:"+uriString);
         if (uriString.startsWith("content")) {
             Uri uri = Uri.parse(uriString);
             returnValue = cordova.getActivity().getContentResolver().openInputStream(uri);
+            Log.e(LOG_TAG, "================getInputStreamFromUriString==================content");
         } else if (uriString.startsWith("file://")) {
+            Log.e(LOG_TAG, "================getInputStreamFromUriString==================file");
             int question = uriString.indexOf("?");
             if (question > -1) {
                 uriString = uriString.substring(0, question);
@@ -317,3 +327,4 @@ public class FileHelper {
         return "com.google.android.apps.photos.content".equals(uri.getAuthority());
     }
 }
+
