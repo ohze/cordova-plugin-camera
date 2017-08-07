@@ -65,7 +65,6 @@ import android.support.v4.content.FileProvider;
 import android.util.Base64;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
-import android.util.Log;
 
 /**
  * This class launches the camera view, allows the user to take a picture, closes the camera view,
@@ -366,6 +365,8 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
         String title = GET_PICTURE;
         croppedUri = null;
         if (this.mediaType == PICTURE) {
+
+            /*
             intent.setType("image/*");
             if (this.allowEdit) {
                 intent.setAction(Intent.ACTION_PICK);
@@ -387,6 +388,10 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
                 intent.setAction(Intent.ACTION_GET_CONTENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
             }
+            */
+            intent.setAction(Intent.ACTION_PICK);
+            intent.setType("image/*");
+            intent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
         } else if (this.mediaType == VIDEO) {
             intent.setType("video/*");
             title = GET_VIDEO;
@@ -602,6 +607,7 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
         String imageFileName = "IMG_" + timeStamp + (this.encodingType == JPEG ? ".jpg" : ".png");
         File storageDir = Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_PICTURES);
+        storageDir.mkdirs();
         String galleryPath = storageDir.getAbsolutePath() + "/" + imageFileName;
         return galleryPath;
     }
@@ -626,7 +632,6 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
 
 
     private String outputModifiedBitmap(Bitmap bitmap, Uri uri) throws IOException {
-        Log.e(LOG_TAG, "================outputModifiedBitmap==================");
         // Some content: URIs do not map to file paths (e.g. picasa).
         String realPath = FileHelper.getRealPath(uri, this.cordova);
 
@@ -663,10 +668,6 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
     }
 
 
-public static boolean isMediaDocument(Uri uri) {    
-    return "com.android.providers.media.documents".equals(uri.getAuthority());    
-}  
-
     /**
      * Applies all needed transformation to the image received from the gallery.
      *
@@ -674,9 +675,7 @@ public static boolean isMediaDocument(Uri uri) {
      * @param intent   An Intent, which can return result data to the caller (various data can be attached to Intent "extras").
      */
     private void processResultFromGallery(int destType, Intent intent) {
-        LOG.e(LOG_TAG, "=========processResultFromGallery===========");
         Uri uri = intent.getData();
-        LOG.d(LOG_TAG, "=========processResultFromGallery  uri:" + uri);
         if (uri == null) {
             if (croppedUri != null) {
                 uri = croppedUri;
@@ -688,47 +687,29 @@ public static boolean isMediaDocument(Uri uri) {
         int rotate = 0;
 
         String fileLocation = FileHelper.getRealPath(uri, this.cordova);
-        LOG.e(LOG_TAG, "File locaton is: " + fileLocation);
+        LOG.d(LOG_TAG, "File locaton is: " + fileLocation);
 
         // If you ask for video or all media type you will automatically get back a file URI
         // and there will be no attempt to resize any returned data
-        LOG.e(LOG_TAG, "======this.mediaType : " + this.mediaType );
         if (this.mediaType != PICTURE) {
-            LOG.e(LOG_TAG, "======this.mediaType : PICTURE");
             this.callbackContext.success(fileLocation);
         }
         else {
-            LOG.e(LOG_TAG, "======this.mediaType : eles");
             String uriString = uri.toString();
             // Get the path to the image. Makes loading so much easier.
             String mimeType = FileHelper.getMimeType(uriString, this.cordova);
 
             // This is a special case to just return the path as no scaling,
             // rotating, nor compressing needs to be done
-
-            Log.e(LOG_TAG, "=================111================height:"+this.targetHeight);
-            Log.e(LOG_TAG, "==================111================width:"+this.targetWidth );
-            Log.e(LOG_TAG, "===================111===============correctOrientation:"+this.correctOrientation);
-            Log.e(LOG_TAG, "==================111================destType:"+destType);
-            Log.e(LOG_TAG, "====================111==============mimeType:"+mimeType);
-            Log.e(LOG_TAG, "====================111==============getMimetypeForFormat(encodingType):"+getMimetypeForFormat(encodingType));
-            Log.e(LOG_TAG, "====================111==============mimeType:"+mimeType.equalsIgnoreCase(getMimetypeForFormat(encodingType)));
             if (this.targetHeight == -1 && this.targetWidth == -1 &&
                     (destType == FILE_URI || destType == NATIVE_URI) && !this.correctOrientation &&
                     mimeType.equalsIgnoreCase(getMimetypeForFormat(encodingType)))
-//             if (false)
-             {
-                 LOG.e(LOG_TAG, "===============1===========================");
-                    String realPath = FileHelper.getRealPath(uri, this.cordova);
-                    this.callbackContext.success("file://" + realPath + "?" + System.currentTimeMillis());
-//                 this.callbackContext.success(uriString);
-             }
-            else {
-                LOG.e(LOG_TAG, "===============2===========================");
+            {
+                this.callbackContext.success(uriString);
+            } else {
                 // If we don't have a valid image so quit.
                 if (!("image/jpeg".equalsIgnoreCase(mimeType) || "image/png".equalsIgnoreCase(mimeType))) {
-                    LOG.e(LOG_TAG, "===============3===========================");
-                    LOG.e(LOG_TAG, "I either have a null image path or bitmap");
+                    LOG.d(LOG_TAG, "I either have a null image path or bitmap");
                     this.failPicture("Unable to retrieve path to picture!");
                     return;
                 }
@@ -739,29 +720,22 @@ public static boolean isMediaDocument(Uri uri) {
                     e.printStackTrace();
                 }
                 if (bitmap == null) {
-                    LOG.e(LOG_TAG, "===============4===========================");
-                    LOG.e(LOG_TAG, "I either have a null image path or bitmap");
+                    LOG.d(LOG_TAG, "I either have a null image path or bitmap");
                     this.failPicture("Unable to create bitmap!");
                     return;
                 }
-                Log.e(LOG_TAG, "==================================destType:"+destType);
+
                 // If sending base64 image back
                 if (destType == DATA_URL) {
-                    LOG.e(LOG_TAG, "===============5===========================");
                     this.processPicture(bitmap, this.encodingType);
                 }
+
                 // If sending filename back
                 else if (destType == FILE_URI || destType == NATIVE_URI) {
                     // Did we modify the image?
-                    Log.e(LOG_TAG, "==================================height:"+this.targetHeight);
-                    Log.e(LOG_TAG, "==================================width:"+this.targetWidth );
-                    Log.e(LOG_TAG, "==================================correctOrientation:"+this.correctOrientation);
-                    Log.e(LOG_TAG, "==================================orientationCorrected:"+this.orientationCorrected);
-                    Log.e(LOG_TAG, "==================================mimeType:"+mimeType.equalsIgnoreCase(getMimetypeForFormat(encodingType)));
                     if ( (this.targetHeight > 0 && this.targetWidth > 0) ||
                             (this.correctOrientation && this.orientationCorrected) ||
                             !mimeType.equalsIgnoreCase(getMimetypeForFormat(encodingType)))
-//                    if(true)
                     {
                         try {
                             String modifiedPath = this.outputModifiedBitmap(bitmap, uri);
@@ -799,8 +773,6 @@ public static boolean isMediaDocument(Uri uri) {
         // Get src and dest types from request code for a Camera Activity
         int srcType = (requestCode / 16) - 1;
         int destType = (requestCode % 16) - 1;
-        Log.e(LOG_TAG, "===================onActivityResult===============requestCode:"+requestCode);
-        Log.e(LOG_TAG, "===================onActivityResult===============destType:"+destType);
 
         // If Camera Crop
         if (requestCode >= CROP_CAMERA) {
@@ -818,7 +790,7 @@ public static boolean isMediaDocument(Uri uri) {
 
             }// If cancelled
             else if (resultCode == Activity.RESULT_CANCELED) {
-                this.failPicture("Camera cancelled.");
+                this.failPicture("No Image Selected");
             }
 
             // If something else
@@ -847,7 +819,7 @@ public static boolean isMediaDocument(Uri uri) {
 
             // If cancelled
             else if (resultCode == Activity.RESULT_CANCELED) {
-                this.failPicture("Camera cancelled.");
+                this.failPicture("No Image Selected");
             }
 
             // If something else
@@ -866,7 +838,7 @@ public static boolean isMediaDocument(Uri uri) {
                     }
                 });
             } else if (resultCode == Activity.RESULT_CANCELED) {
-                this.failPicture("Selection cancelled.");
+                this.failPicture("No Image Selected");
             } else {
                 this.failPicture("Selection did not complete!");
             }
@@ -884,7 +856,7 @@ public static boolean isMediaDocument(Uri uri) {
             return 0;
         }
     }
-    
+
     /**
      * Write an inputstream to local disk
      *
@@ -1432,4 +1404,3 @@ public static boolean isMediaDocument(Uri uri) {
 
 
 }
-
